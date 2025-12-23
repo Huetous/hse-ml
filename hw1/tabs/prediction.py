@@ -18,7 +18,6 @@ def process_name(s, process_variant=True):
     # Remove fuel types (we have 'fuel' feature)
     for w in ['diesel', 'petrol', 'lpg', 'cng']:
         variant = variant.replace(w, "")
-
     # Remove transmission types (we have 'transmission' feature)
     for w in ["mt", "at"]:
         variant = variant.replace(w, "")
@@ -44,7 +43,13 @@ def process_with_other(df, col, allowed_values):
     return df
 
 def process_data_for_model(df, model_dict):
-    df = clean_data(df, model_dict["medians"], model_dict["cols_to_impute"], drop_dups=False)
+    df = clean_data(df, drop_dups=False)
+
+    medians, cols_to_impute = model_dict["medians"], model_dict["cols_to_impute"]
+    df[cols_to_impute] = df[cols_to_impute].fillna(medians)
+    df.engine = df.engine.astype(int)
+    df.seats = df.seats.astype(int)
+
     scaler = model_dict["scaler"]
     num_cols = model_dict["num_features"]
     seats = df["seats"].copy()

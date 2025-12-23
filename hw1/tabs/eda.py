@@ -8,6 +8,7 @@ import streamlit.components.v1 as components
 from ydata_profiling import ProfileReport
 
 from constants import *
+from tabs.model_info import load_model_dict
 
 
 @st.cache_data
@@ -83,15 +84,18 @@ def prepare_data_for_eda(df_train, df_test, cols_to_impute):
     df_test_copy["is_test"] = 1
     df = pd.concat([df_train_copy, df_test_copy], ignore_index=True)
     
+    df = clean_data(df)
     medians = df.loc[df.is_test == 0, cols_to_impute].median()
-    df = clean_data(df, medians, cols_to_impute)
+    df[cols_to_impute] = df[cols_to_impute].fillna(medians)
+    df.engine = df.engine.astype(int)
+    df.seats = df.seats.astype(int)
 
     df_train = df[df.is_test == 0].drop("is_test", axis=1)
     df_test = df[df.is_test == 1].drop("is_test", axis=1)
 
     return df_train, df_test
 
-def clean_data(df, medians, cols_to_impute, drop_dups=True):
+def clean_data(df, drop_dups=True):
     if drop_dups:
         columns = list(df.columns)
         if "selling_price" in columns:
@@ -114,10 +118,6 @@ def clean_data(df, medians, cols_to_impute, drop_dups=True):
         df["torque"].apply(process_torque).apply(pd.Series)
     )
     df.drop("torque", axis=1, inplace=True)
-    df[cols_to_impute] = df[cols_to_impute].fillna(medians)
-
-    df.engine = df.engine.astype(int)
-    df.seats = df.seats.astype(int)
     
     return df
 
@@ -176,9 +176,9 @@ def process_tab_eda():
     with st.container(border=True):
         col1, col2 = st.columns([0.7, 0.3])
         with col1:
-            df_train_clean, df_test_clean = clean_data(
-                df_train, df_test
-            )
+            model_dict = load_model_dict()
+            cols_to_impute = model_dict["cols_to_impute"]
+            df_train_clean, df_test_clean = prepare_data_for_eda(df_train, df_test, cols_to_impute)
             st.header("Cleaned Dataset") 
             st.write("Ниже привидены очищенные данные")
             st.markdown("**Clean Train Dataframe**")
