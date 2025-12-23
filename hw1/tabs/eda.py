@@ -76,16 +76,22 @@ def process_max_power(s):
         s = None
     return s
 
-def clean_data(df_train, df_test=None, drop_dups=True):
-    if df_test is not None:
-        df_train_copy = df_train.copy()
-        df_test_copy = df_test.copy()
-        df_train_copy["is_test"] = 0
-        df_test_copy["is_test"] = 1
-        df = pd.concat([df_train_copy, df_test_copy], ignore_index=True)
-    else:
-        df = df_train.copy()
+def prepare_data_for_eda(df_train, df_test, cols_to_impute):
+    df_train_copy = df_train.copy()
+    df_test_copy = df_test.copy()
+    df_train_copy["is_test"] = 0
+    df_test_copy["is_test"] = 1
+    df = pd.concat([df_train_copy, df_test_copy], ignore_index=True)
+    
+    medians = df.loc[df.is_test == 0, cols_to_impute].median()
+    df = clean_data(df, medians, cols_to_impute)
 
+    df_train = df[df.is_test == 0].drop("is_test", axis=1)
+    df_test = df[df.is_test == 1].drop("is_test", axis=1)
+
+    return df_train, df_test
+
+def clean_data(df, medians, cols_to_impute, drop_dups=True):
     if drop_dups:
         columns = list(df.columns)
         if "selling_price" in columns:
@@ -108,27 +114,12 @@ def clean_data(df_train, df_test=None, drop_dups=True):
         df["torque"].apply(process_torque).apply(pd.Series)
     )
     df.drop("torque", axis=1, inplace=True)
-
-    cols_to_fill = [
-        "mileage", "engine", "max_power", "seats", 
-        "torque_value", "max_torque_rpm"
-    ]
-    if df_test is not None:
-        df = df.fillna(
-            df.loc[df.is_test == 0, cols_to_fill].median()
-        )
-    else:
-        df = df.fillna(df[cols_to_fill].median())
+    df[cols_to_impute] = df[cols_to_impute].fillna(medians)
 
     df.engine = df.engine.astype(int)
     df.seats = df.seats.astype(int)
-
-    if df_test is not None:
-        df_train = df[df.is_test == 0].drop("is_test", axis=1)
-        df_test = df[df.is_test == 1].drop("is_test", axis=1)
-        return df_train, df_test
-    else:
-        return df
+    
+    return df
 
 def process_tab_eda():
     try:

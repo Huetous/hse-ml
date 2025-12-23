@@ -28,8 +28,8 @@
 | Lasso | scaled numerical | 0.6157 |
 | Lasso (Grid Search) | scaled numerical | 0.6020 |
 | ElasticNet (Grid Search) | scaled numerical | 0.6020 |
-| Ridge (Grid Search) | scaled numerical, categorical | 0.6284 |
-| ElasticNet (Grid Search) | scaled numerical, categorical | 0.7859 |
+| Ridge (Grid Search) | scaled numerical, categorical, feature engineering | 0.7761 |
+| Ridge (Grid Search) | scaled numerical, categorical | 0.7881 |
 
 * Бейзлайн показал умеренное качество
 * Стандартизация не повляила на качество

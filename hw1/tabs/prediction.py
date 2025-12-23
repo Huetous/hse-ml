@@ -39,31 +39,31 @@ def process_name(s, process_variant=True):
 def get_top_values(train, col, top=50):
     return list(train[col].value_counts()[:top].index)
 
-def process_with_other(df, col):
-    allowed_values = get_top_values(df, col, 50)
+def process_with_other(df, col, allowed_values):
     df[col] = df[col].apply(lambda x: x if x in allowed_values else "other")
     return df
 
 def process_data_for_model(df, model_dict):
-    df = clean_data(df, drop_dups=False)
+    df = clean_data(df, model_dict["medians"], model_dict["cols_to_impute"], drop_dups=False)
     scaler = model_dict["scaler"]
     num_cols = model_dict["num_features"]
+    seats = df["seats"].copy()
     df[num_cols] = scaler.transform(df[num_cols])
+    df["seats"] = seats
 
     df[["maker", "model", "variant"]] = df.name.apply(process_name).apply(pd.Series)
-    df = process_with_other(df, "maker")
-    df = process_with_other(df, "model")
-    df = process_with_other(df, "variant")
-    df.drop("name", axis=1, inplace=True)
+    df = process_with_other(df, "maker", model_dict["maker_top"])
+    df = process_with_other(df, "model", model_dict["model_top"])
+    df = process_with_other(df, "variant", model_dict["variant_top"])
+    df.drop(["name"], axis=1, inplace=True)
     
     ohe = model_dict["ohe"]
     cat_cols = model_dict["cat_features"]
     cat_ohe = ohe.transform(df[cat_cols])
     cat_ohe = pd.DataFrame(cat_ohe.toarray(), columns=ohe.get_feature_names_out())
-    df = pd.concat([df, cat_ohe], axis=1)
-    to_drop = [col for col in df if df[col].dtype == "object"]
-    to_drop.append("seats")
-    df = df.drop(to_drop, axis=1)
+    df = pd.concat([df.reset_index(drop=True), cat_ohe], axis=1)
+    df = df.drop(cat_cols, axis=1)
+
     return df
 
 def process_tab_predict():
@@ -111,7 +111,7 @@ def process_tab_predict():
             )
             seats = st.number_input(
                 "Кол-во сидений ",
-                value=df_train.seats.dropna().sample(1).values[0]
+                value=df_train.seats.dropna().sample(1).values[0].astype(int)
             )
         
             seller_type = st.selectbox("Тип продавца", seller_type_unique)
@@ -133,12 +133,12 @@ def process_tab_predict():
         try:
             input_df = pd.read_csv(uploaded_file)
             processed_df = process_data_for_model(input_df, model_dict)
-            input_df["selling_price"] = model.predict(processed_df[features])
+            input_df["selling_price"] = model.predict(processed_df[features]).clip(0)
         except Exception as e:
             st.error(f"Ошибка при предсказании: {e}")
             st.stop()
         
-        st.subheader("📊 Результаты")
+        st.subheader("📊 Результаты для загруженного CSV-файла")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Всего объектов", len(input_df))
@@ -171,7 +171,8 @@ def process_tab_predict():
                 "engine": engine,
             }, index=[0])
             processed_df = process_data_for_model(input_df, model_dict)
-            preds = model.predict(processed_df[features])
+            preds = model.predict(processed_df[features]).clip(0)
+            st.subheader("📊 Результаты для введенного объекта")
             st.metric("Предсказанная цена", preds[0])
         except Exception as e:
             st.error(f"Ошибка при предсказании: {e}")
