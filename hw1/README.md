@@ -2,6 +2,8 @@
 * В репо есть файл со средой: `env.yaml`
 
 ***
+[StreamLit Hub Link](https://dugudkov-hse-ml-1.streamlit.app/)
+***
 
 **Что было сделано (кратко по этапам)**
 1. Анализ и подготовка данных
